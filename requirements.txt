@@ -1,0 +1,76 @@
+# ============================================================
+# LexicoTrend FR — Dépendances Python
+# Installation : pip install -r requirements.txt
+#
+# Versions testées sur Python 3.11 / Raspberry Pi 5 (ARM64)
+# ============================================================
+
+
+# ── Chargement de la configuration ──────────────────────────
+python-dotenv==1.0.1
+
+
+# ── Collecte de données ──────────────────────────────────────
+requests==2.32.3
+beautifulsoup4==4.12.3
+lxml==5.2.2
+
+
+# ── Base de données ──────────────────────────────────────────
+# Migration SQLite → PostgreSQL
+psycopg2-binary==2.9.9
+# Note Raspberry Pi (ARM64) : si psycopg2-binary échoue à l'installation,
+# compiler depuis les sources :
+#   sudo apt install libpq-dev gcc
+#   pip install psycopg2==2.9.9
+
+
+# ── Post-correction OCR ──────────────────────────────────────
+transformers==4.44.2
+sentencepiece==0.2.0
+torch==2.4.1
+# Note : installer torch CPU uniquement sur Raspberry Pi
+# pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cpu
+
+
+# ── NLP & métriques lexicales ────────────────────────────────
+spacy==3.7.6
+# Modèle FR à installer séparément :
+# python -m spacy download fr_core_news_md
+lexicalrichness==0.5.1
+
+
+# ── API Anthropic ────────────────────────────────────────────
+anthropic==0.34.2
+
+
+# ── Stockage Nextcloud (WebDAV) ──────────────────────────────
+webdavclient3==3.14.6
+
+
+# ── Machine Learning ─────────────────────────────────────────
+scikit-learn==1.5.2
+numpy==1.26.4
+pandas==2.2.3
+scipy==1.14.1
+statsmodels==0.14.3
+
+
+# ── Visualisation ────────────────────────────────────────────
+plotly==5.24.1
+matplotlib==3.9.2
+
+
+# ── Dashboard ────────────────────────────────────────────────
+streamlit==1.38.0
+
+
+# ── Notebook ─────────────────────────────────────────────────
+jupyter==1.1.1
+ipykernel==6.29.5
+
+
+# ── Logging & utilitaires ────────────────────────────────────
+loguru==0.7.2
+tqdm==4.66.5
+tenacity==9.0.0

@@ -1,0 +1,245 @@
+{
+  "name": "LexicoTrend — Trigger sur nouveau fichier",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "/home/pi/lexicotrend/data/raw",
+        "options": {
+          "recursive": true,
+          "fileExtensions": "txt",
+          "watchFor": "file_created"
+        }
+      },
+      "id": "file-trigger",
+      "name": "Nouveau fichier .txt détecté",
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Surveille data/raw/ sur le système de fichiers du Pi (volume monté dans le conteneur). Déclenché à chaque nouveau .txt."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraire les informations du fichier détecté\nconst filePath = $input.item.json.path || '';\nconst fileName = filePath.split('/').pop() || '';\nconst bookId   = fileName.replace('.txt', '');\n\n// Détecter la source depuis le chemin\nconst source = filePath.includes('/gallica/')    ? 'gallica'\n             : filePath.includes('/gutenberg/')  ? 'gutenberg'\n             : filePath.includes('/wikisource/') ? 'wikisource'\n             : 'inconnu';\n\n// Ignorer les fichiers déjà traités (_clean, _corrected)\nconst isAlreadyProcessed = fileName.includes('_clean') ||\n                           fileName.includes('_corrected') ||\n                           fileName.includes('_l3');\n\n// Chemin du fichier VU depuis l'intérieur du conteneur Docker\n// Le volume est monté : /home/pi/lexicotrend/data → /app/data\nconst containerPath = filePath.replace('/home/pi/lexicotrend/data', '/app/data');\n\nreturn [{\n  json: {\n    filePath,\n    containerPath,\n    fileName,\n    bookId,\n    source,\n    isAlreadyProcessed,\n    detectedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "extract-file-info",
+      "name": "Extraire infos fichier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300],
+      "notes": "Calcule aussi containerPath — le chemin équivalent à l'intérieur du conteneur Docker"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "not-processed",
+              "leftValue": "={{ $json.isAlreadyProcessed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-already-processed",
+      "name": "Fichier brut ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 300],
+      "notes": "Filtre les fichiers _clean et _corrected pour éviter les boucles infinies"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fichier déjà traité — ignorer silencieusement\nconst fileName = $json.fileName || 'inconnu';\nconsole.log(`Fichier ignoré (déjà traité) : ${fileName}`);\nreturn [];"
+      },
+      "id": "ignore-processed",
+      "name": "Ignorer (déjà traité)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 480],
+      "notes": "Branche morte — stoppe silencieusement"
+    },
+    {
+      "parameters": {
+        "command": "={{ 'docker exec lexicotrend python processing/clean.py --input \"' + $json.containerPath + '\" >> /home/pi/lexicotrend/logs/clean_trigger_' + new Date().toISOString().slice(0,10) + '.log 2>&1; echo $?' }}"
+      },
+      "id": "clean-single",
+      "name": "Nettoyage regex (couche 1)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [960, 300],
+      "notes": "Lance clean.py dans le conteneur avec le chemin container (/app/data/...)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "clean-ok",
+              "leftValue": "={{ $json.stdout.trim() }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-clean",
+      "name": "Nettoyage OK ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "command": "={{ 'docker exec lexicotrend python processing/ocr_corrector.py --batch >> /home/pi/lexicotrend/logs/ocr_trigger_' + new Date().toISOString().slice(0,10) + '.log 2>&1; echo $?' }}"
+      },
+      "id": "ocr-single",
+      "name": "Correction ByT5 (couche 2)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1440, 200],
+      "notes": "Lance ocr_corrector.py --batch dans le conteneur — ne traite que les fichiers sous le seuil qualité"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log erreur nettoyage\nconst stderr  = $('Nettoyage regex (couche 1)').item.json.stderr || '';\nconst bookId  = $('Extraire infos fichier').item.json.bookId || 'inconnu';\nconsole.error(`Erreur nettoyage ${bookId} : ${stderr.substring(0,300)}`);\nreturn [{ json: { error: 'clean_failed', bookId, stderr: stderr.substring(0,300) } }];"
+      },
+      "id": "log-clean-error",
+      "name": "Log erreur nettoyage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 440]
+    },
+    {
+      "parameters": {
+        "command": "={{ 'docker exec lexicotrend python enrichment/claude_enricher.py --task ocr >> /home/pi/lexicotrend/logs/claude_ocr_trigger_' + new Date().toISOString().slice(0,10) + '.log 2>&1; echo $?' }}"
+      },
+      "id": "claude-ocr-single",
+      "name": "Correction Claude (couche 3)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1680, 200],
+      "notes": "Couche 3 — uniquement si score OCR encore sous seuil après ByT5"
+    },
+    {
+      "parameters": {
+        "command": "={{ 'docker exec lexicotrend python processing/metrics.py --book-id \"' + $('Extraire infos fichier').item.json.bookId + '\" >> /home/pi/lexicotrend/logs/metrics_trigger_' + new Date().toISOString().slice(0,10) + '.log 2>&1; echo $?' }}"
+      },
+      "id": "metrics-single",
+      "name": "Calcul métriques",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1920, 200],
+      "notes": "Calcule TTR/MTLD/HD-D pour ce livre spécifique via --book-id"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Vérifier si ce nouveau livre est un outlier\n// et déclencher l'enrichissement Claude si besoin\nconst bookId = $('Extraire infos fichier').item.json.bookId;\nconst metricsOut = $('Calcul métriques').item.json.stdout || '';\n\n// L'analyse complète sera relancée par le workflow_collecte hebdo\n// Ici on déclenche juste un check rapide sur ce livre\nreturn [{\n  json: {\n    bookId,\n    metricsOutput: metricsOut.substring(0, 200),\n    nextStep: 'analysis_will_run_on_weekly_schedule',\n    processedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "check-outlier",
+      "name": "Vérification outlier",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, 200],
+      "notes": "Prépare le contexte pour l'enrichissement. L'analyse ML complète est déléguée au workflow hebdo."
+    },
+    {
+      "parameters": {
+        "command": "={{ 'docker exec lexicotrend python enrichment/claude_enricher.py --task anomalies >> /home/pi/lexicotrend/logs/anomalies_trigger_' + new Date().toISOString().slice(0,10) + '.log 2>&1; echo $?' }}"
+      },
+      "id": "enrich-anomalies",
+      "name": "Interprétation anomalies (si outlier)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2400, 200],
+      "notes": "Lance l'enrichissement sur tous les outliers sans interprétation — inclut le nouveau livre si c'est un outlier"
+    },
+    {
+      "parameters": {
+        "jsCode": "const bookId      = $('Extraire infos fichier').item.json.bookId;\nconst source      = $('Extraire infos fichier').item.json.source;\nconst detectedAt  = $('Extraire infos fichier').item.json.detectedAt;\nconst completedAt = new Date().toISOString();\n\n// Calcul durée de traitement\nconst durationMs = new Date(completedAt) - new Date(detectedAt);\nconst durationSec = Math.round(durationMs / 1000);\n\nconsole.log(`✓ Pipeline trigger terminée pour ${bookId} en ${durationSec}s`);\n\nreturn [{\n  json: {\n    status:      'success',\n    bookId,\n    source,\n    detectedAt,\n    completedAt,\n    durationSec,\n    message: `Livre ${bookId} traité avec succès en ${durationSec}s`\n  }\n}];"
+      },
+      "id": "final-log",
+      "name": "Log succès",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2640, 200]
+    }
+  ],
+  "connections": {
+    "Nouveau fichier .txt détecté": {
+      "main": [[{ "node": "Extraire infos fichier", "type": "main", "index": 0 }]]
+    },
+    "Extraire infos fichier": {
+      "main": [[{ "node": "Fichier brut ?", "type": "main", "index": 0 }]]
+    },
+    "Fichier brut ?": {
+      "main": [
+        [{ "node": "Nettoyage regex (couche 1)", "type": "main", "index": 0 }],
+        [{ "node": "Ignorer (déjà traité)",      "type": "main", "index": 0 }]
+      ]
+    },
+    "Nettoyage regex (couche 1)": {
+      "main": [[{ "node": "Nettoyage OK ?", "type": "main", "index": 0 }]]
+    },
+    "Nettoyage OK ?": {
+      "main": [
+        [{ "node": "Correction ByT5 (couche 2)", "type": "main", "index": 0 }],
+        [{ "node": "Log erreur nettoyage",       "type": "main", "index": 0 }]
+      ]
+    },
+    "Correction ByT5 (couche 2)": {
+      "main": [[{ "node": "Correction Claude (couche 3)", "type": "main", "index": 0 }]]
+    },
+    "Correction Claude (couche 3)": {
+      "main": [[{ "node": "Calcul métriques", "type": "main", "index": 0 }]]
+    },
+    "Calcul métriques": {
+      "main": [[{ "node": "Vérification outlier", "type": "main", "index": 0 }]]
+    },
+    "Vérification outlier": {
+      "main": [[{ "node": "Interprétation anomalies (si outlier)", "type": "main", "index": 0 }]]
+    },
+    "Interprétation anomalies (si outlier)": {
+      "main": [[{ "node": "Log succès", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "timezone": "Europe/Paris"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "lexicotrend-pi5"
+  },
+  "tags": [
+    { "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z", "id": "1", "name": "lexicotrend" },
+    { "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z", "id": "3", "name": "trigger" }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "2"
+}

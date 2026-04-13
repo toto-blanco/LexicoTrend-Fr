@@ -1,0 +1,282 @@
+{
+  "name": "LexicoTrend — Collecte Gallica & Gutenberg",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "weeksInterval": 1,
+              "triggerAtDay": [1],
+              "triggerAtHour": 2,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Cron — Lundi 02h00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "command": "docker exec lexicotrend python scraping/gallica.py --max-books 20 >> /home/pi/lexicotrend/logs/collect_gallica_$(date +%Y%m%d).log 2>&1; echo $?"
+      },
+      "id": "collect-gallica",
+      "name": "Collecte Gallica",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [480, 200],
+      "notes": "Lance gallica.py dans le conteneur Docker lexicotrend"
+    },
+    {
+      "parameters": {
+        "command": "docker exec lexicotrend python scraping/gutenberg.py --max-books 20 >> /home/pi/lexicotrend/logs/collect_gutenberg_$(date +%Y%m%d).log 2>&1; echo $?"
+      },
+      "id": "collect-gutenberg",
+      "name": "Collecte Gutenberg",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [480, 400],
+      "notes": "Lance gutenberg.py en parallèle avec Gallica"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "gallica-ok",
+              "leftValue": "={{ $('Collecte Gallica').item.json.stdout.trim() }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-gallica",
+      "name": "Gallica OK ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "gutenberg-ok",
+              "leftValue": "={{ $('Collecte Gutenberg').item.json.stdout.trim() }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-gutenberg",
+      "name": "Gutenberg OK ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "command": "docker exec lexicotrend python processing/clean.py --batch --source gallica >> /home/pi/lexicotrend/logs/clean_gallica_$(date +%Y%m%d).log 2>&1 && docker exec lexicotrend python processing/clean.py --batch --source gutenberg >> /home/pi/lexicotrend/logs/clean_gutenberg_$(date +%Y%m%d).log 2>&1; echo $?"
+      },
+      "id": "clean-texts",
+      "name": "Nettoyage OCR (couche 1)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [960, 300],
+      "notes": "Lance processing/clean.py --batch dans le conteneur Docker"
+    },
+    {
+      "parameters": {
+        "command": "docker exec lexicotrend python processing/ocr_corrector.py --batch >> /home/pi/lexicotrend/logs/ocr_byt5_$(date +%Y%m%d).log 2>&1; echo $?"
+      },
+      "id": "ocr-byt5",
+      "name": "Correction ByT5 (couche 2)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1200, 300],
+      "notes": "Post-correction OCR via ByT5 — uniquement sur les textes sous le seuil qualité"
+    },
+    {
+      "parameters": {
+        "command": "docker exec lexicotrend python enrichment/claude_enricher.py --task ocr >> /home/pi/lexicotrend/logs/claude_ocr_$(date +%Y%m%d).log 2>&1; echo $?"
+      },
+      "id": "ocr-claude",
+      "name": "Correction Claude (couche 3)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1440, 300],
+      "notes": "Couche 3 OCR via Claude Haiku — passages encore dégradés après ByT5"
+    },
+    {
+      "parameters": {
+        "command": "docker exec lexicotrend python processing/metrics.py --batch >> /home/pi/lexicotrend/logs/metrics_$(date +%Y%m%d).log 2>&1; echo $?"
+      },
+      "id": "compute-metrics",
+      "name": "Calcul métriques (spaCy + MTLD)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1680, 300],
+      "notes": "Tokenisation spaCy + calcul TTR/MTLD/HD-D sur les textes corrigés"
+    },
+    {
+      "parameters": {
+        "command": "docker exec lexicotrend python ml/analysis.py >> /home/pi/lexicotrend/logs/analysis_$(date +%Y%m%d).log 2>&1; echo $?"
+      },
+      "id": "run-analysis",
+      "name": "Analyse ML (OLS + KMeans + RF)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1920, 300],
+      "notes": "Régression OLS, clustering KMeans, Random Forest — met à jour analysis_results.json"
+    },
+    {
+      "parameters": {
+        "command": "docker exec lexicotrend python enrichment/claude_enricher.py --task anomalies >> /home/pi/lexicotrend/logs/claude_anomalies_$(date +%Y%m%d).log 2>&1; echo $?"
+      },
+      "id": "claude-anomalies",
+      "name": "Interprétations Claude (anomalies)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2160, 300],
+      "notes": "Génère les interprétations stylistiques pour les outliers via Claude Sonnet"
+    },
+    {
+      "parameters": {
+        "command": "find /home/pi/lexicotrend/logs/ -name '*.log' -mtime +30 -delete && echo 'Logs nettoyés' || echo 'Aucun log à supprimer'"
+      },
+      "id": "cleanup-logs",
+      "name": "Nettoyage logs (>30j)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2400, 300],
+      "notes": "Supprime les logs de plus de 30 jours sur le système de fichiers du Pi (pas dans le conteneur)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date().toISOString();\nconst gallicaOut = $('Collecte Gallica').item.json.stdout || '';\nconst gutenbergOut = $('Collecte Gutenberg').item.json.stdout || '';\n\nreturn [{\n  json: {\n    timestamp: now,\n    status: 'success',\n    summary: `Pipeline LexicoTrend terminée le ${now}`,\n    gallica_exit_code: gallicaOut.trim(),\n    gutenberg_exit_code: gutenbergOut.trim()\n  }\n}];"
+      },
+      "id": "build-summary",
+      "name": "Résumé du run",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log d'erreur Gallica\nconst stderr = $('Collecte Gallica').item.json.stderr || 'Erreur inconnue';\nreturn [{ json: { error: 'Collecte Gallica échouée', detail: stderr.substring(0, 500) } }];"
+      },
+      "id": "log-error-gallica",
+      "name": "Log erreur Gallica",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 80],
+      "notes": "Branche d'erreur — loggue sans bloquer la suite"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log d'erreur Gutenberg\nconst stderr = $('Collecte Gutenberg').item.json.stderr || 'Erreur inconnue';\nreturn [{ json: { error: 'Collecte Gutenberg échouée', detail: stderr.substring(0, 500) } }];"
+      },
+      "id": "log-error-gutenberg",
+      "name": "Log erreur Gutenberg",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 520],
+      "notes": "Branche d'erreur — loggue sans bloquer la suite"
+    }
+  ],
+  "connections": {
+    "Cron — Lundi 02h00": {
+      "main": [
+        [
+          { "node": "Collecte Gallica",   "type": "main", "index": 0 },
+          { "node": "Collecte Gutenberg", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Collecte Gallica": {
+      "main": [[{ "node": "Gallica OK ?", "type": "main", "index": 0 }]]
+    },
+    "Collecte Gutenberg": {
+      "main": [[{ "node": "Gutenberg OK ?", "type": "main", "index": 0 }]]
+    },
+    "Gallica OK ?": {
+      "main": [
+        [{ "node": "Nettoyage OCR (couche 1)", "type": "main", "index": 0 }],
+        [{ "node": "Log erreur Gallica",       "type": "main", "index": 0 }]
+      ]
+    },
+    "Gutenberg OK ?": {
+      "main": [
+        [{ "node": "Nettoyage OCR (couche 1)", "type": "main", "index": 0 }],
+        [{ "node": "Log erreur Gutenberg",     "type": "main", "index": 0 }]
+      ]
+    },
+    "Nettoyage OCR (couche 1)": {
+      "main": [[{ "node": "Correction ByT5 (couche 2)", "type": "main", "index": 0 }]]
+    },
+    "Correction ByT5 (couche 2)": {
+      "main": [[{ "node": "Correction Claude (couche 3)", "type": "main", "index": 0 }]]
+    },
+    "Correction Claude (couche 3)": {
+      "main": [[{ "node": "Calcul métriques (spaCy + MTLD)", "type": "main", "index": 0 }]]
+    },
+    "Calcul métriques (spaCy + MTLD)": {
+      "main": [[{ "node": "Analyse ML (OLS + KMeans + RF)", "type": "main", "index": 0 }]]
+    },
+    "Analyse ML (OLS + KMeans + RF)": {
+      "main": [[{ "node": "Interprétations Claude (anomalies)", "type": "main", "index": 0 }]]
+    },
+    "Interprétations Claude (anomalies)": {
+      "main": [[{ "node": "Nettoyage logs (>30j)", "type": "main", "index": 0 }]]
+    },
+    "Nettoyage logs (>30j)": {
+      "main": [[{ "node": "Résumé du run", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "timezone": "Europe/Paris"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "lexicotrend-pi5"
+  },
+  "tags": [
+    { "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z", "id": "1", "name": "lexicotrend" },
+    { "createdAt": "2024-01-01T00:00:00.000Z", "updatedAt": "2024-01-01T00:00:00.000Z", "id": "2", "name": "production" }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "2"
+}

@@ -1,0 +1,85 @@
+# ============================================================
+# LexicoTrend FR — .gitignore
+# ============================================================
+
+# ── Données (jamais versionnées) ────────────────────────────
+data/raw/
+data/processed/
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Variables d'environnement ────────────────────────────────
+.env
+*.env.local
+
+# ── Python ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ── Environnements virtuels ──────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.virtualenv/
+
+# ── Jupyter ──────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ── Modèles ML (trop lourds pour GitHub) ────────────────────
+models/
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.onnx
+
+# ── Logs ────────────────────────────────────────────────────
+logs/
+*.log
+*.log.*
+
+# ── Système ─────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── IDE ─────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Outputs temporaires ──────────────────────────────────────
+*.tmp
+*.temp
+*.bak
+output/
+tmp/
+
+# ── spaCy modèles téléchargés localement ────────────────────
+# (installés via pip, pas à versionner)
+fr_core_news_md/
+
+# ── HuggingFace cache ────────────────────────────────────────
+# Le cache HF peut peser plusieurs Go
+.cache/huggingface/
+
+# ── Couverture de tests ──────────────────────────────────────
+.coverage
+htmlcov/
+.pytest_cache/
