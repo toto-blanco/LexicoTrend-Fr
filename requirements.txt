@@ -73,4 +73,4 @@ ipykernel==6.29.5
 # ── Logging & utilitaires ────────────────────────────────────
 loguru==0.7.2
 tqdm==4.66.5
-tenacity==9.0.0
+tenacity==8.2.3
