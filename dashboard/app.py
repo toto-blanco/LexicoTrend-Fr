@@ -212,7 +212,7 @@ def render_vue_tendance(df: pd.DataFrame, analysis: dict) -> None:
             fig.add_trace(go.Box(
                 y=decade_df["mtld"], name=row["decade_label"], boxmean=True,
                 marker_color=PALETTE["primary"], line_color=PALETTE["accent"],
-                fillcolor=f"{PALETTE['primary']}44", showlegend=False,
+                fillcolor="rgba(30,58,95,0.27)", showlegend=False,
                 hovertemplate="<b>%{x}</b><br>MTLD: %{y:.1f}<extra></extra>",
             ))
         fig.add_trace(go.Scatter(
