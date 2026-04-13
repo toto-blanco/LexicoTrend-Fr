@@ -3,6 +3,7 @@ FROM python:3.11-slim
 # Dépendances système pour psycopg2 et compilation
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    libc-dev \
     libpq-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
