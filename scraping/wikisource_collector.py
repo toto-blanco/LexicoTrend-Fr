@@ -20,7 +20,7 @@ import psycopg2
 import requests
 from dotenv import load_dotenv
 from loguru import logger
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from init_db import get_connection, verify_db
@@ -154,7 +154,12 @@ def _make_session() -> requests.Session:
 WS_EXPORT_URL = "https://ws-export.wmcloud.org/"
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=15), reraise=True)
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=2, min=30, max=120),
+    retry=retry_if_exception_type(requests.exceptions.ConnectionError),
+    reraise=True,
+)
 def fetch_wikisource_text(session: requests.Session, page_title: str) -> str | None:
     """
     Récupère le texte complet d'une œuvre Wikisource via ws-export.
@@ -171,6 +176,20 @@ def fetch_wikisource_text(session: requests.Session, page_title: str) -> str | N
             },
             timeout=120,
         )
+
+        if response.status_code == 429:
+            logger.warning(f"Rate limit ws-export pour {page_title} — attente 60s")
+            time.sleep(60)
+            response = session.get(
+                WS_EXPORT_URL,
+                params={"format": "txt", "lang": "fr", "page": page_title},
+                timeout=120,
+            )
+
+        if response.status_code == 429:
+            logger.error(f"Rate limit persistant pour {page_title} — livre ignoré")
+            return None
+
         response.raise_for_status()
 
         text = response.text
@@ -178,12 +197,17 @@ def fetch_wikisource_text(session: requests.Session, page_title: str) -> str | N
             logger.warning(f"Export trop court pour : {page_title} ({len(text)} chars)")
             return None
 
-        # Supprimer l'en-tête ws-export (métadonnées, table des matières)
         text = _strip_wsexport_header(text)
         return text.strip()
 
+    except requests.exceptions.HTTPError as e:
+        if "429" in str(e):
+            logger.error(f"Rate limit définitif pour {page_title} — ignoré")
+            return None
+        logger.error(f"Erreur HTTP pour {page_title} : {e}")
+        return None
     except requests.RequestException as e:
-        logger.error(f"Erreur ws-export pour {page_title} : {e}")
+        logger.error(f"Erreur réseau pour {page_title} : {e}")
         raise
 
 
