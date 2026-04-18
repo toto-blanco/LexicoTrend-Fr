@@ -154,47 +154,60 @@ def _make_session() -> requests.Session:
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=15), reraise=True)
 def fetch_wikisource_text(session: requests.Session, page_title: str) -> str | None:
     """
-    Récupère le texte brut d'une page Wikisource via l'API MediaWiki.
-    Utilise action=query + prop=revisions pour obtenir le wikitext,
-    puis nettoie le markup MediaWiki.
+    Récupère le texte brut d'une page Wikisource via action=raw.
+    Cette approche retourne le wikitext complet de la page principale.
+    Pour les œuvres découpées en sous-pages, on récupère ensuite
+    chaque sous-page via l'API et on les concatène.
     """
-    params = {
-        "action":      "query",
-        "titles":      page_title,
-        "prop":        "revisions",
-        "rvprop":      "content",
-        "rvslots":     "main",
-        "format":      "json",
-        "formatversion": "2",
-    }
+    base_url = "https://fr.wikisource.org/w/index.php"
 
     try:
-        response = session.get(WIKISOURCE_API, params=params, timeout=30)
+        # 1. Récupérer la page principale
+        response = session.get(
+            base_url,
+            params={"title": page_title, "action": "raw"},
+            timeout=60,
+        )
         response.raise_for_status()
-        data  = response.json()
-        pages = data.get("query", {}).get("pages", [])
+        main_text = response.text
 
-        if not pages:
-            logger.warning(f"Page introuvable : {page_title}")
+        if not main_text or len(main_text.strip()) < 100:
+            logger.warning(f"Page principale vide : {page_title}")
             return None
 
-        page    = pages[0]
-        missing = page.get("missing", False)
-        if missing:
-            logger.warning(f"Page manquante sur Wikisource : {page_title}")
-            return None
+        # 2. Détecter les sous-pages dans le wikitext
+        subpages = re.findall(
+            rf"\[\[({re.escape(page_title)}/[^\]|#]+)",
+            main_text,
+        )
+        subpages = list(dict.fromkeys(subpages))  # dédoublonner en gardant l'ordre
 
-        revisions = page.get("revisions", [])
-        if not revisions:
-            logger.warning(f"Aucune révision pour : {page_title}")
-            return None
+        if subpages:
+            logger.debug(f"{len(subpages)} sous-pages détectées pour {page_title}")
+            all_texts = []
+            for subpage in subpages:
+                try:
+                    sub_response = session.get(
+                        base_url,
+                        params={"title": subpage, "action": "raw"},
+                        timeout=60,
+                    )
+                    sub_response.raise_for_status()
+                    sub_text = _clean_wikitext(sub_response.text)
+                    if sub_text and len(sub_text.strip()) > 50:
+                        all_texts.append(sub_text)
+                    time.sleep(0.5)
+                except requests.RequestException as e:
+                    logger.warning(f"Impossible de récupérer {subpage} : {e}")
+                    continue
 
-        wikitext = revisions[0].get("slots", {}).get("main", {}).get("content", "")
-        if not wikitext:
-            logger.warning(f"Contenu vide pour : {page_title}")
-            return None
-
-        return _clean_wikitext(wikitext)
+            if all_texts:
+                return "\n\n".join(all_texts)
+            # Fallback : retourner la page principale nettoyée
+            return _clean_wikitext(main_text)
+        else:
+            # Page sans sous-pages — retourner directement
+            return _clean_wikitext(main_text)
 
     except requests.RequestException as e:
         logger.error(f"Erreur réseau pour {page_title} : {e}")
