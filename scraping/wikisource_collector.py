@@ -96,23 +96,47 @@ CORPUS = [
         "genre":    "roman_realiste",
         "page":     "Pierre_et_Jean",
     },
+    # 1910s
+    {
+        "book_id":  "wikisource_grand_meaulnes",
+        "title":    "Le Grand Meaulnes",
+        "author":   "Alain-Fournier",
+        "year":     1913,
+        "genre":    "roman_realiste",
+        "page":     "Le_Grand_Meaulnes",
+    },
+    {
+        "book_id":  "wikisource_symphonie_pastorale",
+        "title":    "La Symphonie pastorale",
+        "author":   "André Gide",
+        "year":     1919,
+        "genre":    "roman_realiste",
+        "page":     "La_Symphonie_pastorale",
+    },
+    {
+        "book_id":  "wikisource_porte_etroite",
+        "title":    "La Porte étroite",
+        "author":   "André Gide",
+        "year":     1909,
+        "genre":    "roman_realiste",
+        "page":     "La_Porte_étroite",
+    },
     # 1920s
     {
-        "book_id":  "wikisource_sido",
-        "title":    "Sido",
-        "author":   "Colette",
-        "year":     1929,
+        "book_id":  "wikisource_la_garconne",
+        "title":    "La Garçonne",
+        "author":   "Victor Margueritte",
+        "year":     1922,
         "genre":    "roman_realiste",
-        "page":     "Sido",
+        "page":     "La_Garçonne",
     },
-    # 1930s
     {
-        "book_id":  "wikisource_la_chatte",
-        "title":    "La Chatte",
+        "book_id":  "wikisource_ble_en_herbe",
+        "title":    "Le Blé en herbe",
         "author":   "Colette",
-        "year":     1933,
+        "year":     1923,
         "genre":    "roman_realiste",
-        "page":     "La_Chatte_(Colette)",
+        "page":     "Le_Blé_en_herbe",
     },
 ]
 
