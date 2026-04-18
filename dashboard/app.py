@@ -195,7 +195,7 @@ def render_sidebar(df: pd.DataFrame) -> tuple[str, list[str], list[str]]:
 # ── Vue 1 — Tendance temporelle ───────────────────────────────────────────────
 
 def render_vue_tendance(df: pd.DataFrame, analysis: dict) -> None:
-    st.markdown("## Évolution de la richesse lexicale")
+    st.markdown("<h2 style='color:#1E3A5F'>Évolution de la richesse lexicale</h2>", unsafe_allow_html=True)
     st.markdown('<p style="color:#9CA3AF;margin-top:-0.5rem">Score MTLD par décennie · 1850–1980</p>', unsafe_allow_html=True)
 
     if df.empty:
@@ -243,7 +243,7 @@ def render_vue_tendance(df: pd.DataFrame, analysis: dict) -> None:
         st.dataframe(display_df, hide_index=True, use_container_width=True, height=420)
 
     st.divider()
-    st.markdown("### Résultats des hypothèses de recherche")
+    st.markdown("<h3 style='color:#1E3A5F'>Résultats des hypothèses de recherche</h3>", unsafe_allow_html=True)
 
     hyp  = analysis.get("hypotheses_summary", {})
     h1   = hyp.get("H1_mtld_decreases_post_war", {})
@@ -272,7 +272,7 @@ def render_vue_tendance(df: pd.DataFrame, analysis: dict) -> None:
         st.info("Exécuter `python ml/analysis.py` pour générer les résultats.", icon="ℹ️")
 
     st.divider()
-    st.markdown("### Carte thermique MTLD — Décennie × Genre")
+    st.markdown("<h3 style='color:#1E3A5F'>Carte thermique MTLD — Décennie × Genre</h3>", unsafe_allow_html=True)
     pivot = df.pivot_table(values="mtld", index="genre", columns="decade_label", aggfunc="median")
     if not pivot.empty:
         fig_heat = px.imshow(pivot, color_continuous_scale="Blues", aspect="auto", labels=dict(color="MTLD médian"))
