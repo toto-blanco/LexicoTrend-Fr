@@ -12,13 +12,12 @@
 ![Docker](https://img.shields.io/badge/Docker-ARM64-2496ED?logo=docker&logoColor=white)
 ![n8n](https://img.shields.io/badge/Orchestration-n8n-EA4B71)
 ![Raspberry Pi](https://img.shields.io/badge/Infra-Raspberry_Pi_5-A22846?logo=raspberrypi&logoColor=white)
-![Status](https://img.shields.io/badge/Status-En%20cours-orange)
+![Status](https://img.shields.io/badge/Status-En%20production-green)
 ![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey)
 
 ---
 
-<!-- Screenshot ou GIF du dashboard à insérer ici une fois déployé -->
-<!-- ![Dashboard LexicoTrend](docs/dashboard_preview.gif) -->
+![Dashboard LexicoTrend — Vue tendance temporelle](docs/dashboard_tendance.png)
 
 ---
 
@@ -27,7 +26,7 @@
 Il n'existe pas de dataset sur l'évolution stylistique des romans populaires français.
 Ce projet le construit de zéro : collecte automatisée depuis Gallica (BnF) et Project Gutenberg,
 post-correction OCR en 3 couches, métriques de diversité lexicale robustes (MTLD),
-modélisation statistique, et dashboard interactif live hébergé sur Raspberry Pi 5.
+modélisation statistique, et dashboard interactif hébergé sur Raspberry Pi 5.
 
 **Hypothèses testées :**
 - H1 : Le MTLD moyen diminue après la Seconde Guerre mondiale (simplification stylistique)
@@ -38,20 +37,27 @@ modélisation statistique, et dashboard interactif live hébergé sur Raspberry 
 
 ## 🔍 Résultats clés
 
-> *À compléter une fois la pipeline exécutée sur le corpus complet.*
->
-> Exemple de ce qui apparaîtra ici :
-> - **H1** : ✅ Tendance significative détectée (p=0.003) — MTLD diminue de X points par décennie après 1945
-> - **H2** : ❌ Variance non significativement différente avant/après 1920 (p=0.21)
-> - **H3** : ✅ Genre (importance=0.41) > Décennie (importance=0.18) dans le Random Forest
+Sur un corpus de 26 romans français (1850–1940), analysés via une pipeline NLP complète :
+
+- **H1 ✅ Supportée** — Le MTLD diminue significativement avec le temps (p=0.0013, R²=0.35) — de 144 dans les 1850s à 107 dans les 1940s
+- **H2 ✅ Supportée** — La variance intra-décennie avant 1920 (σ=21.0) est 15× supérieure à celle après 1920 (σ=1.4) — les styles étaient beaucoup plus hétérogènes au XIXe siècle
+- **H3 ❌ Infirmée** — La décennie (importance=0.14) prédit mieux le MTLD que le genre (importance=0.08) — l'époque compte davantage que le registre littéraire
 
 ---
 
 ## 🚀 Démo
 
-> *Dashboard live à déployer — URL à ajouter ici une fois le Pi accessible depuis internet.*
+Le dashboard tourne en local sur Raspberry Pi 5 (réseau domestique).
 
-👉 **[Voir le dashboard en live](#)** *(à venir)*
+```bash
+# Cloner et lancer localement
+git clone https://github.com/toto-blanco/LexicoTrend-Fr.git
+cd LexicoTrend-Fr
+cp .env.example .env  # remplir avec vos credentials
+docker build -t lexicotrend:latest .
+docker run -d -p 8501:8501 lexicotrend:latest
+# → http://localhost:8501
+```
 
 ---
 
@@ -119,7 +125,7 @@ Stockage
 ### Développement local
 
 ```bash
-git clone https://github.com/<username>/lexicotrend-fr.git
+git clone https://github.com/toto-blanco/LexicoTrend-Fr.git
 cd lexicotrend-fr
 
 python -m venv .venv
@@ -140,7 +146,7 @@ streamlit run dashboard/app.py
 
 ```bash
 # Sur le Pi via SSH
-git clone https://github.com/<username>/lexicotrend-fr.git
+git clone https://github.com/toto-blanco/LexicoTrend-Fr.git
 cd lexicotrend-fr
 cp .env.example .env && nano .env
 
