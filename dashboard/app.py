@@ -222,10 +222,7 @@ def render_vue_tendance(df: pd.DataFrame, analysis: dict) -> None:
             marker=dict(size=8, color=PALETTE["accent"]),
             hovertemplate="<b>%{x}</b><br>Médiane MTLD : %{y:.1f}<extra></extra>",
         ))
-        if "1940s" in decade_stats["decade_label"].values or "1950s" in decade_stats["decade_label"].values:
-            fig.add_vline(x="1940s", line_dash="dot", line_color=PALETTE["neutral"],
-                          annotation_text="1945", annotation_font_color=PALETTE["neutral"],
-                          annotation_position="top right")
+        
         fig.update_layout(
             plot_bgcolor=PALETTE["bg"], paper_bgcolor=PALETTE["bg"],
             font=dict(color="#E8E0D5", family="Source Sans 3"),
