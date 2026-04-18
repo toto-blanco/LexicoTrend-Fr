@@ -30,7 +30,7 @@ load_dotenv()
 # ── Configuration ─────────────────────────────────────────────────────────────
 
 RAW_DATA_DIR  = Path("data/raw/wikisource")
-REQUEST_DELAY = 2.0
+REQUEST_DELAY = 10.0
 WIKISOURCE_API = "https://fr.wikisource.org/w/api.php"
 
 # ── Corpus cible ──────────────────────────────────────────────────────────────
@@ -161,6 +161,7 @@ def fetch_wikisource_text(session: requests.Session, page_title: str) -> str | N
     ws-export compile toutes les sous-pages DjVu en un seul fichier texte.
     """
     try:
+        time.sleep(5)  # délai pré-requête pour respecter le rate limit ws-export
         response = session.get(
             WS_EXPORT_URL,
             params={
