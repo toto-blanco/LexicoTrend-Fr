@@ -151,67 +151,54 @@ def _make_session() -> requests.Session:
     return session
 
 
+WS_EXPORT_URL = "https://ws-export.wmcloud.org/"
+
+
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=15), reraise=True)
 def fetch_wikisource_text(session: requests.Session, page_title: str) -> str | None:
     """
-    Récupère le texte brut d'une page Wikisource via action=raw.
-    Cette approche retourne le wikitext complet de la page principale.
-    Pour les œuvres découpées en sous-pages, on récupère ensuite
-    chaque sous-page via l'API et on les concatène.
+    Récupère le texte complet d'une œuvre Wikisource via ws-export.
+    ws-export compile toutes les sous-pages DjVu en un seul fichier texte.
     """
-    base_url = "https://fr.wikisource.org/w/index.php"
-
     try:
-        # 1. Récupérer la page principale
         response = session.get(
-            base_url,
-            params={"title": page_title, "action": "raw"},
-            timeout=60,
+            WS_EXPORT_URL,
+            params={
+                "format": "txt",
+                "lang":   "fr",
+                "page":   page_title,
+            },
+            timeout=120,
         )
         response.raise_for_status()
-        main_text = response.text
 
-        if not main_text or len(main_text.strip()) < 100:
-            logger.warning(f"Page principale vide : {page_title}")
+        text = response.text
+        if not text or len(text.strip()) < 1000:
+            logger.warning(f"Export trop court pour : {page_title} ({len(text)} chars)")
             return None
 
-        # 2. Détecter les sous-pages dans le wikitext
-        subpages = re.findall(
-            rf"\[\[({re.escape(page_title)}/[^\]|#]+)",
-            main_text,
-        )
-        subpages = list(dict.fromkeys(subpages))  # dédoublonner en gardant l'ordre
-
-        if subpages:
-            logger.debug(f"{len(subpages)} sous-pages détectées pour {page_title}")
-            all_texts = []
-            for subpage in subpages:
-                try:
-                    sub_response = session.get(
-                        base_url,
-                        params={"title": subpage, "action": "raw"},
-                        timeout=60,
-                    )
-                    sub_response.raise_for_status()
-                    sub_text = _clean_wikitext(sub_response.text)
-                    if sub_text and len(sub_text.strip()) > 50:
-                        all_texts.append(sub_text)
-                    time.sleep(0.5)
-                except requests.RequestException as e:
-                    logger.warning(f"Impossible de récupérer {subpage} : {e}")
-                    continue
-
-            if all_texts:
-                return "\n\n".join(all_texts)
-            # Fallback : retourner la page principale nettoyée
-            return _clean_wikitext(main_text)
-        else:
-            # Page sans sous-pages — retourner directement
-            return _clean_wikitext(main_text)
+        # Supprimer l'en-tête ws-export (métadonnées, table des matières)
+        text = _strip_wsexport_header(text)
+        return text.strip()
 
     except requests.RequestException as e:
-        logger.error(f"Erreur réseau pour {page_title} : {e}")
+        logger.error(f"Erreur ws-export pour {page_title} : {e}")
         raise
+
+
+def _strip_wsexport_header(text: str) -> str:
+    """
+    Supprime l'en-tête généré par ws-export :
+    titre, auteur, éditeur, date d'export, table des matières.
+    """
+    # Chercher la fin de la table des matières (marquée par "* * *")
+    marker = "* * *"
+    idx = text.find(marker)
+    if idx != -1:
+        return text[idx + len(marker):]
+    # Fallback : supprimer les 20 premières lignes (en-tête typique)
+    lines = text.splitlines()
+    return "\n".join(lines[20:])
 
 
 def _clean_wikitext(wikitext: str) -> str:
