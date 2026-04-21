@@ -1,7 +1,7 @@
 # LexicoTrend FR 📚
 
 > **La richesse lexicale des romans best-sellers français a-t-elle évolué depuis le XIXe siècle ?**
-> Pipeline NLP end-to-end sur un corpus de ~50 œuvres du domaine public (1850–1980).
+> Pipeline NLP end-to-end sur un corpus de 58 œuvres du domaine public (1860–1940).
 
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![spaCy](https://img.shields.io/badge/spaCy-3.7-09A3D5)
@@ -37,11 +37,11 @@ modélisation statistique, et dashboard interactif hébergé sur Raspberry Pi 5.
 
 ## 🔍 Résultats clés
 
-Sur un corpus de 26 romans français (1850–1940), analysés via une pipeline NLP complète :
+Sur un corpus de 53 romans français (1860–1940), analysés via une pipeline NLP complète :
 
-- **H1 ✅ Supportée** — Le MTLD diminue significativement avec le temps (p=0.0013, R²=0.35) — de 144 dans les 1850s à 107 dans les 1940s
-- **H2 ✅ Supportée** — La variance intra-décennie avant 1920 (σ=21.0) est 15× supérieure à celle après 1920 (σ=1.4) — les styles étaient beaucoup plus hétérogènes au XIXe siècle
-- **H3 ❌ Infirmée** — La décennie (importance=0.14) prédit mieux le MTLD que le genre (importance=0.08) — l'époque compte davantage que le registre littéraire
+- **H1 ✅ Supportée** — Le MTLD diminue très significativement avec le temps (p<0.0001, R²=0.34) — tendance robuste confirmée sur l'ensemble du corpus
+- **H2 ❌ Infirmée** — La variance intra-décennie avant/après 1920 n'est pas significativement différente (p=0.86) — résultat inversé par rapport au petit corpus initial, ce qui souligne l'importance de la taille du corpus
+- **H3 ❌ Infirmée** — La décennie (importance=0.18) prédit mieux le MTLD que le genre (importance=0.09) — l'époque compte davantage que le registre littéraire
 
 ---
 
@@ -188,7 +188,8 @@ lexicotrend-fr/
 ├── requirements.txt
 ├── scraping/
 │   ├── gallica.py               ← API SRU BnF (protocole CQL)
-│   └── gutenberg.py             ← GutendexAPI
+│   ├── gutenberg.py             ← GutendexAPI
+│   └── wikisource_collector.py  ← ws-export Wikisource (œuvres manquantes)
 ├── processing/
 │   ├── clean.py                 ← post-OCR couche 1 (regex)
 │   ├── ocr_corrector.py         ← post-OCR couche 2 (ByT5)
