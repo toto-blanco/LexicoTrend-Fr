@@ -47,7 +47,7 @@ def _load_spacy():
         import spacy
         logger.info(f"Chargement du modèle spaCy : {SPACY_MODEL}")
         _nlp = spacy.load(SPACY_MODEL, disable=["parser", "ner"])
-        _nlp.max_length = 3_000_000
+        _nlp.max_length = 4_000_000
         logger.success(f"Modèle spaCy chargé ✓")
         return _nlp
     except OSError:
