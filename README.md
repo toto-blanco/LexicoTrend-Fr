@@ -61,6 +61,19 @@ docker run -d -p 8501:8501 lexicotrend:latest
 
 ---
 
+## 📸 Screenshots
+
+**Vue 1 — Évolution temporelle du MTLD (1850–1940)**
+![Évolution de la richesse lexicale](docs/dashboard_tendance.png)
+
+**Vue 2 — Résultats des hypothèses de recherche**
+![Résultats H1 / H2 / H3](docs/dashboard_hypotheses.png)
+
+**Vue 3 — Carte thermique MTLD × Décennie × Genre**
+![Carte thermique MTLD](docs/dashboard_heatmap.png)
+
+---
+
 ## 🏗️ Architecture
 
 ```
