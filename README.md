@@ -1,7 +1,7 @@
 # LexicoTrend FR 📚
 
 > **La richesse lexicale des romans best-sellers français a-t-elle évolué depuis le XIXe siècle ?**
-> Pipeline NLP end-to-end sur un corpus de 58 œuvres du domaine public (1860–1940).
+> Pipeline NLP end-to-end sur un corpus de 59 œuvres du domaine public (1850–1940).
 
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![spaCy](https://img.shields.io/badge/spaCy-3.7-09A3D5)
@@ -37,9 +37,9 @@ modélisation statistique, et dashboard interactif hébergé sur Raspberry Pi 5.
 
 ## 🔍 Résultats clés
 
-Sur un corpus de 53 romans français (1860–1940), analysés via une pipeline NLP complète :
+Sur un corpus de 56 romans français (1850–1940), analysés via une pipeline NLP complète :
 
-- **H1 ✅ Supportée** — Le MTLD diminue très significativement avec le temps (p<0.0001, R²=0.34) — tendance robuste confirmée sur l'ensemble du corpus
+- **H1 ✅ Supportée** — Le MTLD diminue significativement avec le temps (p=0.0015, R²=0.17) — tendance robuste confirmée sur 9 décennies
 - **H2 ❌ Infirmée** — La variance intra-décennie avant/après 1920 n'est pas significativement différente (p=0.86) — résultat inversé par rapport au petit corpus initial, ce qui souligne l'importance de la taille du corpus
 - **H3 ❌ Infirmée** — La décennie (importance=0.18) prédit mieux le MTLD que le genre (importance=0.09) — l'époque compte davantage que le registre littéraire
 
@@ -238,3 +238,18 @@ Plus d'informations : https://creativecommons.org/licenses/by-nc/4.0/
 ---
 
 *Projet réalisé dans le cadre d'un portfolio data analyst post-bootcamp Jedha.*
+
+---
+
+## 🤖 Collaboration avec Claude (Anthropic)
+
+Ce projet a été développé en collaboration active avec **Claude Sonnet** (Anthropic).
+
+**Ce que Claude a fait :**
+La rédaction de l'ensemble des scripts Python a été déléguée à Claude : scrapers (Gallica SRU, GutendexAPI, Wikisource ws-export), pipeline de traitement (`clean.py`, `ocr_corrector.py`, `metrics.py`), enrichissement LLM (`claude_enricher.py`), analyse ML (`analysis.py`), dashboard Streamlit (`app.py`), schéma PostgreSQL (`init_db.py`), Dockerfile ARM64, et workflows n8n. Claude a également assuré le débogage itératif en temps réel (conflits de dépendances, compilation ARM64, rate limits API, gestion mémoire spaCy sur Pi 5).
+
+**Ce que j'ai fait :**
+La direction du projet, les choix de recherche et la formulation des 3 hypothèses (H1/H2/H3), le choix du MTLD comme métrique principale, la sélection du corpus (58 œuvres, 9 décennies), la validation manuelle des résultats statistiques, le déploiement physique sur Raspberry Pi 5, et l'interprétation des résultats. Chaque script produit par Claude a été testé, validé et ajusté selon les résultats réels obtenus en production.
+
+**Pourquoi cette transparence ?**
+Utiliser un assistant IA pour accélérer la production de code est une compétence en soi — savoir formuler le bon problème, valider les outputs, et garder la maîtrise analytique. C'est exactement ce qu'un Data Analyst fait avec une équipe technique : piloter, valider, interpréter.
